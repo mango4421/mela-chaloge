@@ -12,5 +12,5 @@ test('Dahan moves through countdown, arrow, burning, celebration and a clean fin
   assert.deepEqual(phases,['countdown','arrow','burn','celebrate',undefined]);
   assert.equal(completed,1);assert.equal(e.stats.finale,true);assert.equal(e.mode,'walk');
   assert.equal(e.world.ravana.visible,false);assert.equal(e.arrow,null);assert.equal(e.ram,null);
-  assert.ok(volleys.length>=4);assert.ok(volleys.every(p=>p.z===-54||Number.isFinite(p.z)));
+  assert.ok(volleys.length>=4);assert.ok(volleys.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)));
 });
