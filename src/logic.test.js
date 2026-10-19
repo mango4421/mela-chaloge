@@ -1,0 +1,4 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {canMove,nearestAttraction,ringLanding,ringScore} from './logic.js';
+test('movement respects stall collision and world bounds while allowing pathways',()=>{const colliders=[{x:10,z:0,hx:3,hz:2}];assert.equal(canMove(0,0,colliders),true);assert.equal(canMove(10,0,colliders),false);assert.equal(canMove(45,0,colliders),false);assert.equal(canMove(6,0,colliders),true)});
+test('only nearby attractions can be interacted with',()=>{const items=[{id:'far',x:10,z:0,radius:4},{id:'near',x:2,z:0,radius:4}];assert.equal(nearestAttraction({x:0,z:0},items).id,'near');assert.equal(nearestAttraction({x:-10,z:0},items),null)});
+test('ring aiming is bounded and only bottle centers score',()=>{assert.deepEqual(ringLanding(0,-120),{x:0,z:3});assert.equal(ringScore(0,3),true);assert.equal(ringScore(0,1),false);assert.equal(ringLanding(1000,-1000).x,3.6)});
