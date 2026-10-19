@@ -4,8 +4,16 @@ export function createWorld(THREE, scene) {
   const interactables = [], colliders = [], animations = [];
   const palettes = { red:0xce4251, pink:0xe77596, cream:0xffe4b4, gold:0xffb945, teal:0x219e96, blue:0x365da1, wood:0x573b30, dark:0x172526 };
   const mats = {};
+  // Real generated photographic/painterly artwork enriches the physical stalls.
+  // Each cropped texture shares one atlas image, while preserving independent UVs.
+  const artworkTextures=[];
+  const stallAtlas=typeof window!=='undefined'?new THREE.TextureLoader().load('/assets/mela-stall-atlas.webp',loaded=>{artworkTextures.forEach(texture=>{texture.image=loaded.image;texture.needsUpdate=true;});}):new THREE.Texture();
+  stallAtlas.colorSpace=THREE.SRGBColorSpace;
+  function stallArtwork(tile,section='back'){const texture=stallAtlas.clone(),left=tile%2*.5,bottom=tile<2?.5:0;texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.ClampToEdgeWrapping;texture.repeat.set(.498,section==='back'?.348:.147);texture.offset.set(left+.001,bottom+(section==='back'?.151:.001));texture.anisotropy=4;if(texture.image)texture.needsUpdate=true;artworkTextures.push(texture);return new THREE.MeshStandardMaterial({map:texture,color:0xffffff,roughness:.8,emissive:0xffb35e,emissiveMap:texture,emissiveIntensity:.52,side:THREE.DoubleSide});}
+  const artworkMaterials=Array.from({length:4},(_,tile)=>({back:stallArtwork(tile),counter:stallArtwork(tile,'counter')}));
   const mat = (color, emissive = false) => { const key = `${color}-${emissive}`; return mats[key] ||= new THREE.MeshStandardMaterial({color, roughness:.83, flatShading:true, ...(emissive ? {emissive:color,emissiveIntensity:1.5}: {})}); };
   const geo = { box:new THREE.BoxGeometry(1,1,1), sphere:new THREE.SphereGeometry(1,8,6), cylinder:new THREE.CylinderGeometry(1,1,1,10), cone:new THREE.ConeGeometry(1,1,7) };
+  geo.pennant=new THREE.BufferGeometry();geo.pennant.setAttribute('position',new THREE.Float32BufferAttribute([-.24,0,0,.24,0,0,0,-.55,0],3));geo.pennant.computeVertexNormals();
   function mesh(shape,color,x,y,z,sx=1,sy=sx,sz=sx,parent=root,glow=false) { const m=new THREE.Mesh(geo[shape],mat(color,glow)); m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m; }
   function box(c,x,y,z,sx,sy,sz,p=root){return mesh('box',c,x,y,z,sx,sy,sz,p);}
   function ball(c,x,y,z,r,p=root,glow=false){return mesh('sphere',c,x,y,z,r,r,r,p,glow);}
@@ -15,7 +23,7 @@ export function createWorld(THREE, scene) {
   function interact(id,type,name,x,z,mesh,dialogue,radius=5.5) {interactables.push({id,type,name,x,z,radius,mesh,heading:Math.atan2(x-mesh.position.x,z-mesh.position.z),dialogue});}
   function bulb(x,y,z,color=0xffba58,parent=root){return ball(color,x,y,z,.095,parent,true);}
   function garland(a,b,n=24,depth=.8,parent=root){let prev=a.clone();for(let i=1;i<=n;i++){let t=i/n;let p=a.clone().lerp(b,t);p.y-=Math.sin(t*Math.PI)*depth;rod(prev,p,0x3d3021,.025,parent);if(i%2===0)bulb(p.x,p.y,p.z,i%4?0xffc15b:0xffe6a0,parent);prev=p;}}
-  function pennants(a,b,n=15){for(let i=0;i<n;i++){let t=i/(n-1),p=a.clone().lerp(b,t);p.y-=Math.sin(t*Math.PI)*.5;let g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([-.24,0,0,.24,0,0,0,-.55,0],3));const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:[0xe55352,0xf5b743,0x238d87,0xe97798][i%4],side:THREE.DoubleSide}));m.position.copy(p);root.add(m);}}
+  function pennants(a,b,n=15){for(let i=0;i<n;i++){let t=i/(n-1),p=a.clone().lerp(b,t);p.y-=Math.sin(t*Math.PI)*.5;const cloth=mat([0xe55352,0xf5b743,0x238d87,0xe97798][i%4]);cloth.side=THREE.DoubleSide;const m=new THREE.Mesh(geo.pennant,cloth);m.position.copy(p);root.add(m);}}
   // A procedural, repeatable dirt surface, with footpath dust and flecks.
   const canvas=document.createElement('canvas');canvas.width=canvas.height=256;const ctx=canvas.getContext('2d');ctx.fillStyle='#6b5643';ctx.fillRect(0,0,256,256);let seed=183;for(let i=0;i<6000;i++){seed=(seed*16807)%2147483647;let x=seed%256;seed=(seed*16807)%2147483647;let y=seed%256;ctx.fillStyle=i%2?'#79634d':'#594a3b';ctx.fillRect(x,y,i%4+1,1);}const dirt=new THREE.CanvasTexture(canvas);dirt.wrapS=dirt.wrapT=THREE.RepeatWrapping;dirt.repeat.set(28,38);dirt.colorSpace=THREE.SRGBColorSpace;
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(125,145),new THREE.MeshStandardMaterial({map:dirt,roughness:1,color:0xb6a48b}));ground.rotation.x=-Math.PI/2;ground.position.z=-15;ground.receiveShadow=true;root.add(ground);
@@ -26,6 +34,13 @@ export function createWorld(THREE, scene) {
   box(0x882b37,0,8,0,17,2.3,1.4,gate);sign('मेरा DUSSEHRA MELA',0,8.05, .76,14,1.7,gate);sign('मेरा DUSSEHRA MELA',0,8.05,-.76,14,1.7,gate).rotation.y=Math.PI;
   sign('Mela chaloge mere sath? ♥',0,5.8,.82,11,.95,gate);sign('Mela chaloge mere sath? ♥',0,5.8,-.82,11,.95,gate).rotation.y=Math.PI;
   for(let x=-7;x<=7;x+=.45){let y=6.8-Math.sin((x+7)/14*Math.PI)*1.5;ball(0xf49b24,x,y,.9,.19,gate);ball(0xe8791b,x,y-.3,.9,.15,gate);}
+  // Rich layers of orange and yellow flowers, glittering festoons and lanterns.
+  for(let layer=0;layer<3;layer++)for(let i=0;i<=68;i++){const x=-8+i*16/68,y=7.05-layer*.27-Math.abs(Math.sin((x+8)/16*Math.PI*3))*(.55+layer*.2);ball(i%3?0xffb927:0xee6420,x,y,1.05+layer*.09,.115,gate);}
+  for(let x of [-8.9,8.9])for(let y=1.7;y<8.2;y+=.27){ball(y%1>.5?0xffbc32:0xf28a20,x-.55,y,1.18,.14,gate);ball(0xffd14b,x+.55,y,1.18,.12,gate);}
+  for(let i=0;i<=30;i++){let x=-8+i*16/30;bulb(x,9.4-Math.abs(x)*.035,1.05,0xffcf65,gate);}for(let x of [-8.1,8.1])for(let y=1.2;y<8;y+=.5)bulb(x,y,1.2,0xffc458,gate);
+  for(let y of [2.1,4.1,6.1,8.5])for(let x of [-9,9]){box(0xe8af49,x,y,1.3,.65,.95,.5,gate);box(0xffbd54,x,y,1.58,.44,.64,.03,gate).material=mat(0xffc56a,true);mesh('cone',0xc68436,x,y+.64,1.3,.5,.4,.4,gate);}
+  for(let z of [29,35,40]){garland(new THREE.Vector3(-11,8.8,z),new THREE.Vector3(11,8.8,z),44,1.35);pennants(new THREE.Vector3(-11,8.1,z+.5),new THREE.Vector3(11,8.1,z+.5),27);}
+  const gateWash=new THREE.PointLight(0xffa941,105,30,2);gateWash.position.set(0,6,36);root.add(gateWash);const entryWash=new THREE.PointLight(0xffbb68,65,21,2);entryWash.position.set(0,3,26);root.add(entryWash);
   for(let z=26;z>=-55;z-=13){[-9,9].forEach(x=>{mesh('cylinder',0x714932,x,3.9,z,.09,7.8,.09);box(0x352b23,x,7.8,z,.3,.15,.3);});garland(new THREE.Vector3(-9,7.5,z),new THREE.Vector3(9,7.5,z),30,1.2);if(z%2===0)pennants(new THREE.Vector3(-9,7,z+1),new THREE.Vector3(9,7,z+1));}
   // Low-poly people share simple geometry and face the pedestrian lanes.
   function person(x,z,color=0xe6ad55,scale=1,parent=root){const g=new THREE.Group();g.position.set(x,0,z);g.scale.setScalar(scale);parent.add(g);box(color,0,1.05,0,.55,.85,.35,g);ball(0xb67d55,0,1.7,0,.25,g);ball(0x211b21,0,1.84,-.025,.23,g);[-1,1].forEach(s=>{const leg=box(0x303c49,s*.16,.37,0,.18,.72,.2,g);box(color,s*.37,1.05,0,.16,.7,.2,g);box(0x211e22,s*.16,.07,.08,.2,.13,.37,g);});return g;}
@@ -34,6 +49,11 @@ export function createWorld(THREE, scene) {
     [-2.4,2.4].forEach(s=>rod(new THREE.Vector3(s,0,1.25),new THREE.Vector3(s,4.3,1.25),0x9e7146,.07,g));
     for(let i=0;i<10;i++){const roof=box(i%2?0xffe5ba:color,-2.7+i*.6,4.15,0,.6,.15,3.8,g);roof.rotation.x=-.12;box(i%2?0xffe5ba:color,-2.7+i*.6,3.85,1.85,.6,.55,.1,g);bulb(-2.6+i*.58,3.48,1.55,0xffcc74,g);}
     sign(name,0,3,-1.18,4.5,.75,g);person(.45,-.3,0xf3d293,1,g);
+    const tile=type==='toy'||type==='balloon'||type==='ring'?2:/JALEBI|KULFI|CANDY|POPCORN/.test(name)?1:/MOMO|CHOWMEIN/.test(name)?3:0;
+    const backArt=new THREE.Mesh(new THREE.PlaneGeometry(4.95,2.7),artworkMaterials[tile].back);backArt.position.set(0,2.36,-1.205);g.add(backArt);
+    const counterArt=new THREE.Mesh(new THREE.PlaneGeometry(4.96,1.12),artworkMaterials[tile].counter);counterArt.position.set(0,1.05,1.367);g.add(counterArt);
+    // Bloom is baked into the artwork; small genuine golden bulbs sell its depth.
+    for(let k=0;k<9;k++){const xx=-2.4+k*.6;ball(k%2?0xf5a620:0xffc645,xx,3.55-Math.sin(k/8*Math.PI)*.25,1.5,.105,g);}
     if(type==='food'){for(let i=-1;i<=1;i++){mesh('cylinder',0xa8a399,i*1.3,1.77,1.05,.48,.25,.48,g);ball([0xf3a53c,0x8bad45,0xe6c272][i+1],i*1.3,1.94,1.05,.38,g);}for(let i=0;i<4;i++)ball(0xefb057,-1.8+i*.3,1.95,.4,.15,g);}
     if(type==='toy'){for(let row=0;row<3;row++)for(let col=0;col<7;col++){ball([0xe66d85,0x72b4a3,0xf5c666][col%3],-1.9+col*.62,1.7+row*.5,-1,.18,g);box(0xf3c359,-1.9+col*.62,1.46+row*.5,-1,.26,.3,.2,g);}}
     if(type==='balloon'){for(let row=0;row<3;row++)for(let col=0;col<7;col++)mesh('sphere',[0xe74364,0x3eb1bd,0xf7ca46,0xac76d4][(row+col)%4],-1.9+col*.62,1.8+row*.56,-1,.23,.28,.21,g);}
@@ -81,8 +101,10 @@ export function createWorld(THREE, scene) {
   for(let z=26;z>=-39;z-=13)for(let x of [-6,0,6])halo(x,7.5-Math.sin((x+9)/18*Math.PI)*1.2,z,2.2);
   foods.forEach(f=>halo(f[1]+(f[1]<0?1.8:-1.8),3.5,f[2],2.5));
   [-6,0,6].forEach(x=>halo(x,6.2,32,2.6));halo(28,10,-28.4,3.8);halo(22,15.6,-28.4,2.8);halo(34,15.6,-28.4,2.8);
+  for(let x of [-9,-5,0,5,9]){halo(x,8.1,32.9,2.4);halo(x,7.9,36,2.1);}halo(-9,4.1,33.6,2.3);halo(9,4.1,33.6,2.3);
   const floorGlowMaterial=new THREE.MeshBasicMaterial({map:glowTexture,color:0xffbe7a,transparent:true,opacity:.25,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});const floorGlowGeometry=new THREE.PlaneGeometry(10,10);
   for(let z of [18,7,-5,-18])for(let x of [-10,10]){const pool=new THREE.Mesh(floorGlowGeometry,floorGlowMaterial);pool.rotation.x=-Math.PI/2;pool.position.set(x,.045,z);root.add(pool);}
+  for(let [x,z] of [[-5,34],[5,34],[0,28]]){const pool=new THREE.Mesh(floorGlowGeometry,floorGlowMaterial);pool.rotation.x=-Math.PI/2;pool.position.set(x,.048,z);pool.scale.setScalar(1.45);root.add(pool);}
   // Instanced crowd: six render calls, animated walking limbs, predictable paths.
   const count=68,dummy=new THREE.Object3D(),crowd=[];
   const body=new THREE.InstancedMesh(geo.box,mat(0xffffff),count),heads=new THREE.InstancedMesh(geo.sphere,mat(0xbe8a66),count),hair=new THREE.InstancedMesh(geo.sphere,mat(0x2c2527),count),legs=new THREE.InstancedMesh(geo.box,mat(0x394457),count*2),arms=new THREE.InstancedMesh(geo.box,mat(0xffffff),count*2);

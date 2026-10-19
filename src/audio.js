@@ -1,9 +1,10 @@
+import {HindiVoicePlayer} from './speech.js';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-/** Procedural fair ambience; no recorded crowd or vendor voices. */
+/** Procedural fair ambience with pre-rendered native-Hindi vendor voices. */
 export class MelaAudio {
   constructor() {
-    this.enabled = true;
+    this.enabled = true;this.voice=new HindiVoicePlayer();
     this.context = null;
     this.nodes = [];
     this.disposed = false;
@@ -14,7 +15,7 @@ export class MelaAudio {
       if (!this.context || this.disposed) return;
       if (document.hidden) {
         this.context.suspend().catch(() => {});
-        window.speechSynthesis?.cancel();
+        this.voice.stop();
       } else if (this.enabled) this.context.resume().catch(() => {});
     };
     document.addEventListener('visibilitychange', this.onVisibility);
@@ -22,6 +23,7 @@ export class MelaAudio {
 
   async start() {
     if (this.disposed) return false;
+    this.voice.unlock();
     try {
       if (!this.context) {
         const Audio = window.AudioContext || window.webkitAudioContext;
@@ -78,13 +80,14 @@ export class MelaAudio {
 
   setEnabled(enabled) {
     this.enabled = Boolean(enabled);
-    if (!this.enabled) window.speechSynthesis?.cancel();
+    if (!this.enabled) this.voice.stop();
     if (!this.context) return;
     this.master.gain.setTargetAtTime(this.enabled ? 0.48 : 0, this.context.currentTime, 0.12);
     if (this.enabled && !document.hidden) this.context.resume().catch(() => {});
   }
 
   update(player = { x: 0, z: 0 }, locations = [], dt = 0) {
+    this.voice.update();
     const ctx = this.context;
     if (!ctx || ctx.state !== 'running' || !this.enabled || this.disposed) return;
     const now = ctx.currentTime;
@@ -199,25 +202,13 @@ export class MelaAudio {
     }
   }
 
-  speak(text) {
-    if (!this.enabled || this.disposed || document.hidden || !this.context || !window.speechSynthesis || !text) return;
-    window.speechSynthesis.cancel();
-    const speech = new SpeechSynthesisUtterance(String(text).slice(0, 250));
-    const hindi = /[\u0900-\u097f]/.test(speech.text);
-    const voices = window.speechSynthesis.getVoices();
-    speech.voice = voices.find(voice => voice.lang.startsWith(hindi ? 'hi' : 'en-IN'))
-      || voices.find(voice => voice.lang.startsWith(hindi ? 'hi' : 'en')) || null;
-    speech.lang = hindi ? 'hi-IN' : 'en-IN';
-    speech.rate = 0.9;
-    speech.volume = 0.65;
-    window.speechSynthesis.speak(speech);
-  }
+  speak(text) {if(!this.enabled||this.disposed||document.hidden||!text)return;this.voice.speak(text);}
 
   dispose() {
     if (this.disposed) return;
-    this.disposed = true;
+    this.disposed = true;this.voice.dispose();
     document.removeEventListener('visibilitychange', this.onVisibility);
-    window.speechSynthesis?.cancel();
+    this.voice.stop();
     for (const node of this.nodes) {
       try { node.stop?.(); } catch { /* A source may already have stopped. */ }
       try { node.disconnect(); } catch { /* Ignore closed context cleanup. */ }

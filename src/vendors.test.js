@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {foodMenu} from './vendors.js';
+test('sweet stalls offer sweet choices instead of generic spicy food',()=>{for(const id of ['food-1','food-5','food-6','food-7']){const menu=foodMenu({id});assert.equal(menu.choices.length,2);assert(!menu.choices.some(c=>/teekha|spicy|chilli/i.test(c.label)))}});
+test('all eight food vendors have distinct conversations and souvenirs',()=>{const menus=Array.from({length:8},(_,i)=>foodMenu({id:`food-${i}`}));assert.equal(new Set(menus.map(m=>m.greeting)).size,8);assert.equal(new Set(menus.flatMap(m=>m.choices.map(c=>c.item))).size,16)});
