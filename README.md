@@ -18,7 +18,7 @@ Environment models are procedural low-poly geometry with instanced crowd and sta
 
 ## Optional support
 
-`public/payment-config.js` accepts only a public Razorpay button ID or hosted payment link. It is intentionally blank until supplied by the creator. `/support.html` explains voluntary creator support and that no physical goods or delivery are offered. All play and souvenirs remain free; no payment success is inferred from returning to the game.
+`public/payment-config.js` accepts only a public Razorpay button ID or hosted payment link. The supplied public payment button is connected. A quiet, persistent Daan patra button opens the optional support page. `/support.html` explains voluntary creator support and that no physical goods or delivery are offered. All play and souvenirs remain free; no payment success is inferred from returning to the game.
 
 ## Media
 
