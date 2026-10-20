@@ -1,0 +1,1 @@
+export const media={"panorama": "/assets/optimized/panorama-c20ba02aa128.webp", "stallAtlas": "/assets/optimized/stallAtlas-fa1b53076153.webp", "supportQR": "/assets/optimized/supportQR-836a2910a450.png", "voices": "/assets/optimized/voices-70beec65d9ca.json"};

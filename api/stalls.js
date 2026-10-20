@@ -6,7 +6,8 @@ import {razorpayClient,paymentMode,paymentCollection,providerStatus,providerMess
 import {orderState,orderLeaseMs,recoverOrder} from '../server/order-recovery.js';
 import {slotCollection,slotAvailable,reserveSlot} from '../server/stall-slots.js';
 import {paymentAttempt} from '../server/funnel.js';
-function json(data,status=200,publicSeconds=0){return Response.json(data,{status,headers:{'Cache-Control':publicSeconds?`public, max-age=0, s-maxage=${publicSeconds}`:'no-store','X-Content-Type-Options':'nosniff'}})}
+import {publicRead} from '../server/public-cache.js';
+function json(data,status=200,publicSeconds=0){return Response.json(data,{status,headers:{'Cache-Control':publicSeconds?`public, max-age=${Math.min(15,publicSeconds)}, s-maxage=${publicSeconds}`:'no-store','X-Content-Type-Options':'nosniff'}})}
 function ready(){return process.env.ENABLE_STALL_CHECKOUT==='true'&&Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON&&process.env.RAZORPAY_KEY_ID&&process.env.RAZORPAY_KEY_SECRET&&(paymentMode()==='test'||process.env.RAZORPAY_WEBHOOK_SECRET))}
 async function publish(db,ref,data,payment){
   assertCaptured(payment,data.orderId,data.stall.plan);
@@ -45,12 +46,12 @@ export async function GET(request){
   const action=new URL(request.url).searchParams.get('action');
   if(action==='config'){
     let availableSlots=[];
-    if(process.env.FIREBASE_SERVICE_ACCOUNT_JSON){try{const rows=await stallDatabase().collection(slotCollection(paymentMode())).get(),taken=new Map(rows.docs.map(row=>[row.id,row.data()]));availableSlots=stallSlots.filter(slot=>slotAvailable(taken.get(slot.id),'')).map(slot=>slot.id);}catch{return json({enabled:false,mode:paymentMode(),terms:stallTerms,plans:stallPlans,availableSlots:[],error:'Stall bookings are temporarily paused while our database is unavailable. Your draft is safe. Please return later; no payment is taken.'},503)}}
+    if(process.env.FIREBASE_SERVICE_ACCOUNT_JSON){try{const rows=await publicRead(`slots:${paymentMode()}`,()=>stallDatabase().collection(slotCollection(paymentMode())).get(),15000),taken=new Map(rows.docs.map(row=>[row.id,row.data()]));availableSlots=stallSlots.filter(slot=>slotAvailable(taken.get(slot.id),'')).map(slot=>slot.id);}catch{return json({enabled:false,mode:paymentMode(),terms:stallTerms,plans:stallPlans,availableSlots:[],error:'Stall bookings are temporarily paused while our database is unavailable. Your draft is safe. Please return later; no payment is taken.'},200,15)}}
     return json({enabled:ready(),mode:paymentMode(),terms:stallTerms,plans:stallPlans,availableSlots},200,15);
   }
   if(action!=='list')return json({error:'Not found.'},404);
   if(!process.env.FIREBASE_SERVICE_ACCOUNT_JSON)return json({stalls:[]});
-  try{const snapshot=await stallDatabase().collection('mela_stalls').where('status','==','published').get();return json({stalls:snapshot.docs.filter(row=>liveListing(row.data())).map(row=>({id:row.id,...row.data().stall,expiresAt:row.data().expiresAt})).sort((a,b)=>(b.plan==='featured')-(a.plan==='featured')||a.name.localeCompare(b.name))},200,60);}catch{return json({error:'Stalls could not be loaded.'},503)}
+  try{const snapshot=await publicRead('published',()=>stallDatabase().collection('mela_stalls').where('expiresAt','>',Date.now()).get());return json({stalls:snapshot.docs.filter(row=>liveListing(row.data())).map(row=>({id:row.id,...row.data().stall,expiresAt:row.data().expiresAt})).sort((a,b)=>(b.plan==='featured')-(a.plan==='featured')||a.name.localeCompare(b.name))},200,30);}catch{return json({stalls:[],unavailable:true,error:'Stalls are temporarily unavailable. Games remain free.'},200,30)}
 }
 export async function POST(request){
   const action=new URL(request.url).searchParams.get('action');

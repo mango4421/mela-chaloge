@@ -1,0 +1,6 @@
+node_modules
+.git
+.env*
+dist
+public/assets/mela-panorama.png
+public/assets/mela-stall-atlas.png

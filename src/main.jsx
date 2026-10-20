@@ -1,3 +1,5 @@
+import {analyticsSample} from './analytics-sample.js';
+import {media} from './media.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Analytics} from '@vercel/analytics/react';
@@ -29,7 +31,7 @@ function App(){
   const collect=item=>{engine.current.collect(item);setStats(engine.current.getStats());setLine('Yeh lo bhaiya! Virtual souvenir hai. Payment bilkul optional.');};
   const activity=()=>{setPanel(null);if(vendor.type==='balloon'||vendor.type==='ring')engine.current.beginGame(vendor.type,vendor);else if(vendor.type==='ride')engine.current.ride(vendor);else if(vendor.type==='finale')engine.current.startFinale();else if(vendor.type==='stage')engine.current.watchStage();else if(vendor.type==='fireworks'){engine.current.startFireworkShow()}else if(vendor.type==='photo'){setPhoto(engine.current.photo());setPanel('share')} };
   const capture=()=>{setCard('');setPhoto(engine.current.photo());openPanel('share')};
-  const invite=()=>{setCard('');setPhoto(entered&&ready?engine.current.photo():'/assets/mela-panorama.png');openPanel('share')};
+  const invite=()=>{setCard('');setPhoto(entered&&ready?engine.current.photo():media.panorama);openPanel('share')};
   const url=()=> 'https://melachaloge.online';
   const nativeShare=async()=>{try{if(navigator.share)await navigator.share({title:'Mela chaloge mere sath? ❤️',text:shareText,url:url()});else await copy()}catch(e){if(e.name!=='AbortError')showToast('Sharing is unavailable here. Try Copy link.')}};
   const copy=async()=>{try{await navigator.clipboard.writeText(`${shareText}\n${url()}`);showToast('Invite copied. Ab dost ko bulao!')}catch{showToast('Copy this link from your address bar to invite a friend.')}};
@@ -60,4 +62,4 @@ function App(){
   </section></div>}
   {toast&&<div className="toast" role="status">{toast}</div>}</div>
 }
-createRoot(document.getElementById('root')).render(<><App/><Analytics/></>);
+createRoot(document.getElementById('root')).render(<><App/>{analyticsSample()&&<Analytics/>}</>);

@@ -1,4 +1,8 @@
 if(typeof document!=='undefined'){
+// Match the app's session sample; sales/payment verification is never sampled.
+let sampled=false;try{let value=sessionStorage.getItem('mela-analytics-10pct-v1');if(value===null){value=Math.random()<.1?'yes':'no';sessionStorage.setItem('mela-analytics-10pct-v1',value)}sampled=value==='yes'}catch{sampled=Math.random()<.1}
+if(sampled){const insights=document.createElement('script');insights.src='/_vercel/insights/script.js';insights.defer=true;document.head.append(insights)}
+
 const message=document.querySelector('#payment-status'),buttons=[...document.querySelectorAll('[data-amount]')];
 const say=text=>message.textContent=text,busy=value=>buttons.forEach(button=>button.disabled=value);
 let loading;

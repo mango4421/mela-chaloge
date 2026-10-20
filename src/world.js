@@ -1,3 +1,4 @@
+import {media} from './media.js';
 import {stallSlots} from './stalls.js';
 import {createWell} from './well.js';
 /** The walkable mela. All coordinates are world-space metres. */
@@ -9,7 +10,7 @@ export function createWorld(THREE, scene, partners=[]) {
   // Real generated photographic/painterly artwork enriches the physical stalls.
   // Each cropped texture shares one atlas image, while preserving independent UVs.
   const artworkTextures=[];
-  const stallAtlas=typeof window!=='undefined'?new THREE.TextureLoader().load('/assets/mela-stall-atlas.webp',loaded=>{artworkTextures.forEach(texture=>{texture.image=loaded.image;texture.needsUpdate=true;});}):new THREE.Texture();
+  const stallAtlas=typeof window!=='undefined'?new THREE.TextureLoader().load(media.stallAtlas,loaded=>{artworkTextures.forEach(texture=>{texture.image=loaded.image;texture.needsUpdate=true;});}):new THREE.Texture();
   stallAtlas.colorSpace=THREE.SRGBColorSpace;
   function stallArtwork(tile,section='back'){const texture=stallAtlas.clone(),left=tile%2*.5,bottom=tile<2?.5:0;texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.ClampToEdgeWrapping;texture.repeat.set(.498,section==='back'?.348:.147);texture.offset.set(left+.001,bottom+(section==='back'?.151:.001));texture.anisotropy=4;if(texture.image)texture.needsUpdate=true;artworkTextures.push(texture);return new THREE.MeshStandardMaterial({map:texture,color:0xffffff,roughness:.8,emissive:0xffb35e,emissiveMap:texture,emissiveIntensity:.52,side:THREE.DoubleSide});}
   const artworkMaterials=Array.from({length:4},(_,tile)=>({back:stallArtwork(tile),counter:stallArtwork(tile,'counter')}));
