@@ -9,6 +9,7 @@ test('unconfigured checkout fails closed and never advertises active payments',a
     assert.equal((await response.json()).enabled,false);
     const pay=await POST(new Request('https://melachaloge.online/api/stalls?action=order',{method:'POST',headers:{Origin:'https://melachaloge.online','Content-Type':'application/json'},body:'{}'}));
     assert.equal(pay.status,503);
+    const bypass=await POST(new Request('https://melachaloge.online/api/stalls?action=preview',{method:'POST',headers:{Origin:'https://melachaloge.online'},body:'{}'}));assert.equal(bypass.status,503);
     const foreign=await POST(new Request('https://melachaloge.online/api/stalls?action=order',{method:'POST',headers:{Origin:'https://other.example'},body:'{}'}));
     assert.equal(foreign.status,403);
   }finally{if(prior!==undefined)process.env.ENABLE_STALL_CHECKOUT=prior;}

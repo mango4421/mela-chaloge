@@ -1,3 +1,4 @@
+import {stallSlots} from './stalls.js';
 import {createWell} from './well.js';
 /** The walkable mela. All coordinates are world-space metres. */
 export function createWorld(THREE, scene, partners=[]) {
@@ -51,8 +52,8 @@ export function createWorld(THREE, scene, partners=[]) {
     for(let i=0;i<10;i++){const roof=box(i%2?0xffe5ba:color,-2.7+i*.6,4.15,0,.6,.15,3.8,g);roof.rotation.x=-.12;box(i%2?0xffe5ba:color,-2.7+i*.6,3.85,1.85,.6,.55,.1,g);bulb(-2.6+i*.58,3.48,1.55,0xffcc74,g);}
     sign(name,0,3,-1.18,4.5,.75,g);person(.45,-.3,0xf3d293,1,g);
     const tile=type==='toy'||type==='balloon'||type==='ring'?2:/JALEBI|KULFI|CANDY|POPCORN/.test(name)?1:/MOMO|CHOWMEIN/.test(name)?3:0;
-    const backArt=new THREE.Mesh(new THREE.PlaneGeometry(4.95,2.7),artworkMaterials[tile].back);backArt.position.set(0,2.36,-1.205);g.add(backArt);
-    const counterArt=new THREE.Mesh(new THREE.PlaneGeometry(4.96,1.12),artworkMaterials[tile].counter);counterArt.position.set(0,1.05,1.367);g.add(counterArt);
+    const backArt=new THREE.Mesh(new THREE.PlaneGeometry(4.95,2.7),artworkMaterials[tile].back);backArt.position.set(0,2.36,-1.205);g.add(backArt);g.userData.backArt=backArt;
+    const counterArt=new THREE.Mesh(new THREE.PlaneGeometry(4.96,1.12),artworkMaterials[tile].counter);counterArt.position.set(0,1.05,1.367);g.add(counterArt);g.userData.counterArt=counterArt;
     // Bloom is baked into the artwork; small genuine golden bulbs sell its depth.
     for(let k=0;k<9;k++){const xx=-2.4+k*.6;ball(k%2?0xf5a620:0xffc645,xx,3.55-Math.sin(k/8*Math.PI)*.25,1.5,.105,g);}
     if(type==='food'){for(let i=-1;i<=1;i++){mesh('cylinder',0xa8a399,i*1.3,1.77,1.05,.48,.25,.48,g);ball([0xf3a53c,0x8bad45,0xe6c272][i+1],i*1.3,1.94,1.05,.38,g);}for(let i=0;i<4;i++)ball(0xefb057,-1.8+i*.3,1.95,.4,.15,g);}
@@ -63,9 +64,11 @@ export function createWorld(THREE, scene, partners=[]) {
   }
   const foods=[['SHARMA JI KI CHAAT',-14,18,0xc64e54],['GARAM JALEBI',14,18,0xda8c36],['GOLGAPPE',-14,7,0x248b83],['CHOWMEIN',14,7,0xc76049],['STEAMING MOMOS',-14,-5,0xd57a39],['MALAI KULFI',14,-5,0x765e9b],['GARAM POPCORN',-24,-18,0xc64a48],['CANDY FLOSS',23,-13,0xca658d]];
   foods.forEach((f,i)=>{
-    const partner=partners[i];if(!partner){stall(...f,'food',`food-${i}`);return;}
+    const partner=partners.find(p=>p.slotId===stallSlots[i].id)||(!partners.some(p=>p.slotId)?partners[i]:null);if(!partner){stall(...f,'food',`food-${i}`);return;}
     const colour={kesari:0xdc9239,gulabi:0xce5278,neela:0x318d99}[partner.theme];
     const group=stall(partner.name,f[1],f[2],colour,'partner',partner.id);
+    group.remove(group.userData.counterArt);sign(partner.category==='creator'?'DISCOVER OUR WORK →':'EXPLORE OUR COLLECTION →',0,1.05,1.39,4.96,1.12,group);
+    if(partner.backdrop){const art=group.userData.backArt,fallback=art.material,material=fallback.clone();art.material=material;const texture=new THREE.TextureLoader().load(partner.backdrop,loaded=>{loaded.colorSpace=THREE.SRGBColorSpace;material.map=loaded;material.emissiveMap=loaded;material.needsUpdate=true;},undefined,()=>texture.dispose());}
     const item=interactables.at(-1);Object.assign(item,{partner,dialogue:partner.greeting});
     sign(partner.plan==='featured'?'★ FEATURED BRAND ★':'✦ MELA PARTNER',0,4.85,1.8,5.6,.65,group);
     sign(partner.name,0,3.05,1.9,4.7,.7,group);

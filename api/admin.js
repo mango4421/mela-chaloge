@@ -1,5 +1,6 @@
 import {stallDatabase} from '../server/firebase.js';
 import {adminPasswordValid,adminSession,authenticatedAdmin} from '../server/admin.js';
+import {slotCollection} from '../server/stall-slots.js';
 import {digest} from '../server/stall-payments.js';
 function json(data,status=200,headers={}){return Response.json(data,{status,headers:{'Cache-Control':'no-store',...headers}})}
 const configured=()=>Boolean(process.env.MELA_ADMIN_SECRET?.length>=32&&process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
@@ -30,7 +31,7 @@ export async function POST(request){
   if(action!=='remove'||! /^[a-f0-9-]{36}$/.test(body.id||'')||!['test','live'].includes(body.mode))return json({error:'Invalid action or stall.'},400);
   try{
     const db=stallDatabase(),ref=db.collection(body.mode==='test'?'mela_stall_tests':'mela_stalls').doc(body.id);
-    const removed=await db.runTransaction(async tx=>{const existing=await tx.get(ref);if(!existing.exists)return false;tx.update(ref,{status:'removed',suppressed:true,removedAt:Date.now()});return true;});
+    const removed=await db.runTransaction(async tx=>{const existing=await tx.get(ref);if(!existing.exists)return false;const slotId=existing.data().stall?.slotId;const slotRef=slotId?db.collection(slotCollection(body.mode)).doc(slotId):null;const slot=slotRef?(await tx.get(slotRef)).data():null;if(slot?.stallId===body.id)tx.set(slotRef,{stallId:body.id,expiresAt:0});tx.update(ref,{status:'removed',suppressed:true,removedAt:Date.now()});return true;});
     return removed?json({removed:true}):json({error:'Stall not found.'},404);
   }catch{return json({error:'Stall could not be removed.'},503)}
 }

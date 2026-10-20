@@ -29,7 +29,7 @@ Razorpay webhook: `https://melachaloge.online/api/stalls?action=webhook`. Subscr
 
 Refund/dispute events suppress the listing, and a later capture retry cannot republish it. To remove an abusive listing, sign in to `/admin` and choose Remove store. Payment discourages spam; it does not certify that a brand is legitimate.
 
-Eight rotating 3D slots replace demo food booths. Featured brands get priority and extra golden lighting; all brands are available through the directory, and each direct `/?stall=UUID` link includes that stall. Games and rides remain free. No guaranteed traffic, sales, physical goods or physical booth are sold.
+Eight fixed, non-overlapping 3D locations replace demo food booths. Owners choose an available spot. Featured brands get directory priority and extra golden lighting; all brands are available through the directory, and each direct `/?stall=UUID` link includes that stall. Games and rides remain free. No guaranteed traffic, sales, physical goods or physical booth are sold.
 
 Rate-limit documents contain hashed IP/hour identifiers, not raw IPs. Enable Firestore TTL on `mela_stall_rate_limits.expiresAt`, or periodically clear expired rate-limit documents. Never delete payment records as part of that cleanup.
 
@@ -54,3 +54,21 @@ Endpoints use the existing framework equivalents: POST `/api/stalls?action=order
 - `.env.example`, `.gitignore`, package files and focused tests: configuration, SDK and verification.
 
 Known MVP limits: drafts and recovery tokens belong to the original device; no later self-service content editing yet. If creating an order times out after provider acceptance but before persistence, reconcile its Razorpay receipt before permitting another order. The public partner list is fetched on each visit and has a four-second fallback to the free mela; add cached pagination when the paid partner list grows.
+
+## Backdrops, contact links and chosen locations
+
+Owners can upload JPG/PNG/WebP (up to 8 MB input, resized to max 1024px and 200,000 characters of JPEG data) or supply a public HTTPS image link. Uploaded images are stored inside the private stall draft and published stall record; no public storage bucket is required. External image hosts must allow browser image embedding/CORS; failed 3D loads retain the default stall artwork.
+
+Instagram, shop, contact page, WhatsApp with country code, and contact email are optional, with at least one contact required. All entered contacts are public after publication. Markup, unsafe URL protocols, malformed email and invalid phone numbers are rejected server-side.
+
+`stallSlots` defines eight fixed locations. Location documents in `mela_slots` are claimed atomically with the checkout draft; `mela_slot_tests` isolates test reservations. Checkout holds a spot for 20 minutes, and the modal times out after 15 minutes. Verified live capture extends the same reservation to the original seven-day expiry. Admin removal, refunds and disputes release the matching reservation. Expired holds are reclaimable. The renderer also refuses duplicate locations as a second guard.
+
+A very late captured payment whose location was already reassigned is marked `placement_review` for owner resolution and never overlaps a different store. The buyer is told not to pay again and to contact support. No automatic refund is issued by this exception path.
+
+Added `src/stall-backdrop.js`, `server/stall-slots.js` and reservation/contact/backdrop tests. A real Firestore concurrent-transaction check confirmed that only one of two simultaneous reservations succeeds.
+
+## Local payment-free testing
+
+The local adapter in `scripts/local-preview.mjs` (`npm run build`, then `npm run dev:preview`) advertises a Preview without payment button. It validates the same stall data and keeps demos in process memory; demo visits use `/?preview=UUID` and spawn next to the chosen store. They never write a paid flag, payment record, live listing or location reservation. Restarting this local adapter clears its demos. The production API does not implement the preview action. Live credentials remain pending owner approval.
+
+Order recovery now leases active creation work for two minutes. Old failed drafts reconcile Razorpay orders by receipt before retrying, so a missing provider response does not blindly create another order. Definitive authentication failures reset the lease and show the actual error.
