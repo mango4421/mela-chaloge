@@ -20,6 +20,11 @@ test('checkout session validates draft and never accepts caller supplied paid fl
   assert.equal(clean.stall.paid,undefined);assert.equal(clean.tokenHash.length,64);
   assert.throws(()=>orderInput({...clean,token:'bad',accepted:true}));
 });
+test('order amounts reject sub-rupee values, fractions, wrong currency and plan tampering',()=>{
+  const input={id:'29b2c71c-0f30-4ef2-b659-ad717bc18ca1',token:'d975b84f-ea41-4d8e-8d15-62f0ba64b932',stall:{...emptyStall,name:'Sample',instagram:'@sample'},accepted:true};
+  for(const amount of [0,99,100.5,100,50000])assert.throws(()=>orderInput({...input,amount}));
+  assert.throws(()=>orderInput({...input,amount:20000,currency:'USD'}));assert.equal(orderInput({...input,amount:20000,currency:'INR'}).stall.plan,'basic');
+});
 test('publication expires after seven days and duplicate callbacks never extend it',()=>{
   const now=1800000000000,data={orderId:'order_123',stall:{plan:'basic'}},payment={id:'pay_456',order_id:'order_123',amount:20000,currency:'INR',status:'captured',amount_refunded:0};
   const first=publicationUpdate(data,payment,now),again=publicationUpdate({...data,...first},payment,now+3600000);

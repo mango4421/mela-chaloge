@@ -53,9 +53,10 @@ export class FestivalFireworks {
     scene.add(this.points);
     this.fountains = [
       {x: -10, z: 26, phase: 0}, {x: 10, z: 26, phase: 1.8},
-      {x: -18, z: -20, phase: 3.2}, {x: 18, z: -20, phase: 4.7}
+      {x: -18, z: -20, phase: 3.2}, {x: 18, z: -20, phase: 4.7},
+      {x: 19, z: -46, phase: .4}, {x: 27, z: -46, phase: 2.1}
     ];
-    this.fountainClock = [0,0,0,0];
+    this.fountainClock = this.fountains.map(()=>0);
     this.rockets = Array.from({length: 10}, () => ({active: false, x: 0,y: 0,z: 0,vx: 0,vy: 0,vz: 0,target: 0,trail: 0,color: 0,power: 1}));
     this.lights = [new THREE.PointLight(0xffaa44,0,13,2),new THREE.PointLight(0xffbb66,0,13,2)];
     this.lights.forEach((light,i) => {light.position.set(this.fountains[i].x,1.2,this.fountains[i].z);scene.add(light);});
@@ -89,7 +90,7 @@ export class FestivalFireworks {
       const up=1-2*(i+.5)/count, radius=Math.sqrt(1-up*up), angle=i*goldenAngle;
       const velocity=speed*(.8+Math.random()*.3);
       this.particle(x,y,z,Math.cos(angle)*radius*velocity,up*velocity,Math.sin(angle)*radius*velocity,
-        i%7===0?PALETTE[4]:color,2.3+Math.random()*1.8,1.2+Math.random()*.6,1.5,1,.22);
+        i%7===0?PALETTE[4]:color,2.3+Math.random()*1.8,1.8+Math.random()*.9,1.5,1,.22);
     }
     for(let i=0;i<15;i++) this.particle(x,y,z,(Math.random()-.5)*2,(Math.random()-.5)*2,(Math.random()-.5)*2,PALETTE[4],.3+Math.random()*.3,2.5,1,0,.2);
   }
@@ -104,7 +105,7 @@ export class FestivalFireworks {
     } else this.launch(x,z,power);
   }
 
-  update(dt,time,player,{finale=false,reducedMotion=false}={}) {
+  update(dt,time,player,{finale=false,reducedMotion=false,show=false}={}) {
     if(this.disposed) return;
     dt=Math.max(0,Math.min(Number(dt)||0,.065));
     this.time=Number.isFinite(time)?time:this.time+dt;
@@ -115,8 +116,9 @@ export class FestivalFireworks {
     const now=this.time;
     if(!reducedMotion && now>=this.nextLaunch) {
       this.launchSide*=-1;
-      this.launch(this.launchSide*(14+Math.random()*9),this.launchSide>0?-18:5,finale?1.65:1.1);
-      this.nextLaunch=now+(finale?.55:1.35)+Math.random()*.65;
+      const inRoshni=show||Math.hypot((player?.x??0)-23,(player?.z??0)+43)<20;
+      this.launch(inRoshni?23+this.launchSide*(5+Math.random()*4):this.launchSide*(14+Math.random()*9),inRoshni?-64:this.launchSide>0?-18:5,show?1.7:finale?1.65:1.1);
+      this.nextLaunch=now+(show?.6:finale?.55:1.35)+Math.random()*.45;
     }
     for(let f=0;f<this.fountains.length;f++) {
       const source=this.fountains[f];

@@ -21,5 +21,8 @@ export function orderInput(input){
   const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
   if(!uuid.test(input?.id)||!uuid.test(input?.token))throw Error('Invalid checkout session.');
   if(input.accepted!==true)throw Error('Please confirm the placement terms.');
-  return {id:input.id,tokenHash:digest(input.token),stall:validateStall(input.stall)};
+  const stall=validateStall(input.stall);
+  if(input.amount!==undefined&&(!Number.isInteger(input.amount)||input.amount<100||input.amount!==stallPlans[stall.plan].amount))throw Error('Amount must match the selected plan and be at least 100 paise.');
+  if(input.currency!==undefined&&input.currency!=='INR')throw Error('Only INR is supported.');
+  return {id:input.id,tokenHash:digest(input.token),stall};
 }

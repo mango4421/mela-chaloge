@@ -2,40 +2,36 @@ import {stallDatabase} from '../server/firebase.js';
 import {digest,validSignature,assertCaptured,orderInput,publicationUpdate,liveListing} from '../server/stall-payments.js';
 import {stallPlans,stallTerms} from '../src/stalls.js';
 
-const collection='mela_stalls';
+import {razorpayClient,paymentMode,paymentCollection,providerStatus,providerMessage} from '../server/razorpay.js';
 function json(data,status=200){return Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
-function ready(){return process.env.ENABLE_STALL_CHECKOUT==='true'&&Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON&&process.env.RAZORPAY_KEY_ID&&process.env.RAZORPAY_KEY_SECRET&&process.env.RAZORPAY_WEBHOOK_SECRET)}
-async function razorpay(path,body){
-  const response=await fetch(`https://api.razorpay.com/v1/${path}`,{method:body?'POST':'GET',headers:{Authorization:`Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(12000)});
-  if(!response.ok)throw Error('Payment provider is temporarily unavailable.');return response.json();
-}
+function ready(){return process.env.ENABLE_STALL_CHECKOUT==='true'&&Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON&&process.env.RAZORPAY_KEY_ID&&process.env.RAZORPAY_KEY_SECRET&&(paymentMode()==='test'||process.env.RAZORPAY_WEBHOOK_SECRET))}
 async function publish(db,ref,data,payment){
   assertCaptured(payment,data.orderId,data.stall.plan);
-  return db.runTransaction(async tx=>{const block=await tx.get(db.collection('mela_payment_blocks').doc(payment.id));const current=(await tx.get(ref)).data(),update=publicationUpdate(current,payment);if(block.exists||!update)return false;tx.update(ref,update);return true;});
+  return db.runTransaction(async tx=>{const block=await tx.get(db.collection('mela_payment_blocks').doc(payment.id));const current=(await tx.get(ref)).data(),update=publicationUpdate(current,payment);if(block.exists||!update)return false;if(paymentMode()==='test'){tx.update(ref,{status:'test_verified',testMode:true,paymentId:payment.id,verifiedAt:current.verifiedAt||Date.now()});return true;}tx.update(ref,update);return true;});
 }
 async function webhook(request,raw){
   if(!validSignature(raw,request.headers.get('x-razorpay-signature'),process.env.RAZORPAY_WEBHOOK_SECRET))return json({error:'Invalid signature.'},401);
   const event=JSON.parse(raw),db=stallDatabase();
   if(['order.paid','payment.captured'].includes(event.event)){
     const entity=event.payload?.payment?.entity;if(!/^pay_[a-zA-Z0-9]+$/.test(entity?.id||''))return json({received:true});
-    const payment=await razorpay(`payments/${entity.id}`),order=await razorpay(`orders/${payment.order_id}`),id=order.notes?.mela_stall_id;
+    const payment=await razorpayClient().payments.fetch(entity.id),order=await razorpayClient().orders.fetch(payment.order_id),id=order.notes?.mela_stall_id;
     if(!/^[a-f0-9-]{36}$/.test(id||''))return json({received:true});
-    const ref=db.collection(collection).doc(id),data=(await ref.get()).data();if(!data)return json({error:'Stall record not ready.'},503);
+    const ref=db.collection(paymentCollection()).doc(id),data=(await ref.get()).data();if(!data)return json({error:'Stall record not ready.'},503);
     if(data.orderId!==order.id)return json({error:'Order mismatch.'},409);
     if(payment.amount_refunded>0)return json({received:true});
     await publish(db,ref,data,payment);
   }else if(['refund.processed','payment.dispute.created','payment.dispute.lost'].includes(event.event)){
     const paymentId=event.payload?.refund?.entity?.payment_id||event.payload?.dispute?.entity?.payment_id;
-    if(/^pay_[a-zA-Z0-9]+$/.test(paymentId||'')){await db.collection('mela_payment_blocks').doc(paymentId).set({reason:event.event,createdAt:Date.now()});const found=await db.collection(collection).where('paymentId','==',paymentId).get();for(const row of found.docs)await row.ref.update({status:'removed',suppressed:true});}
+    if(/^pay_[a-zA-Z0-9]+$/.test(paymentId||'')){await db.collection('mela_payment_blocks').doc(paymentId).set({reason:event.event,createdAt:Date.now()});const found=await db.collection(paymentCollection()).where('paymentId','==',paymentId).get();for(const row of found.docs)await row.ref.update({status:'removed',suppressed:true});}
   }
   return json({received:true});
 }
 export async function GET(request){
   const action=new URL(request.url).searchParams.get('action');
-  if(action==='config')return json({enabled:ready(),terms:stallTerms,plans:stallPlans});
+  if(action==='config')return json({enabled:ready(),mode:paymentMode(),terms:stallTerms,plans:stallPlans});
   if(action!=='list')return json({error:'Not found.'},404);
   if(!process.env.FIREBASE_SERVICE_ACCOUNT_JSON)return json({stalls:[]});
-  try{const snapshot=await stallDatabase().collection(collection).where('status','==','published').get();return json({stalls:snapshot.docs.filter(row=>liveListing(row.data())).map(row=>({id:row.id,...row.data().stall,expiresAt:row.data().expiresAt})).sort((a,b)=>(b.plan==='featured')-(a.plan==='featured')||a.name.localeCompare(b.name))});}catch{return json({error:'Stalls could not be loaded.'},503)}
+  try{const snapshot=await stallDatabase().collection('mela_stalls').where('status','==','published').get();return json({stalls:snapshot.docs.filter(row=>liveListing(row.data())).map(row=>({id:row.id,...row.data().stall,expiresAt:row.data().expiresAt})).sort((a,b)=>(b.plan==='featured')-(a.plan==='featured')||a.name.localeCompare(b.name))});}catch{return json({error:'Stalls could not be loaded.'},503)}
 }
 export async function POST(request){
   const action=new URL(request.url).searchParams.get('action');
@@ -51,7 +47,7 @@ export async function POST(request){
   const db=stallDatabase();
   if(action==='order'){
     let clean;try{clean=orderInput(input)}catch(error){return json({error:error.message},400)}
-    const ref=db.collection(collection).doc(clean.id);
+    const ref=db.collection(paymentCollection()).doc(clean.id);
     try{
       // Claim the immutable draft before calling Razorpay. Retries reuse its order.
       const existing=await db.runTransaction(async tx=>{
@@ -66,23 +62,24 @@ export async function POST(request){
         if(existing.tokenHash!==clean.tokenHash||existing.stallHash!==digest(JSON.stringify(clean.stall)))return json({error:'Checkout session does not match this draft.'},409);
         if(!existing.orderId)return json({error:'Your checkout is being prepared. Please wait before trying again.'},409);
         if(existing.status==='removed')return json({error:'This listing is no longer active.'},409);
-        return json({orderId:existing.orderId,key:process.env.RAZORPAY_KEY_ID,amount:stallPlans[existing.stall.plan].amount,published:liveListing(existing),expired:Boolean(existing.expiresAt&&existing.expiresAt<=Date.now())});
+        return json({order_id:existing.orderId,key:process.env.RAZORPAY_KEY_ID,amount:stallPlans[existing.stall.plan].amount,currency:'INR',mode:paymentMode(),published:liveListing(existing),verified:existing.status==='test_verified',expired:Boolean(existing.expiresAt&&existing.expiresAt<=Date.now())});
       }
-      const order=await razorpay('orders',{amount:stallPlans[clean.stall.plan].amount,currency:'INR',receipt:clean.id,notes:{mela_stall_id:clean.id}});
+      const order=await razorpayClient().orders.create({amount:stallPlans[clean.stall.plan].amount,currency:'INR',receipt:clean.id,notes:{mela_stall_id:clean.id}});
       await ref.update({orderId:order.id,status:'awaiting_payment'});
-      return json({orderId:order.id,key:process.env.RAZORPAY_KEY_ID,amount:stallPlans[clean.stall.plan].amount});
-    }catch{return json({error:'Checkout could not be prepared. No payment was requested. Please try later.'},503)}
+      return json({order_id:order.id,key:process.env.RAZORPAY_KEY_ID,amount:stallPlans[clean.stall.plan].amount,currency:'INR',mode:paymentMode()});
+    }catch(error){return json({error:providerMessage(error)},providerStatus(error))}
   }
   if(action==='verify'){
+    if(!input.razorpay_payment_id||!input.razorpay_order_id||!input.razorpay_signature)return json({error:'Payment ID, order ID and signature are required.'},400);
     if(!/^[a-f0-9-]{36}$/.test(input.id||'')||typeof input.token!=='string'||input.token.length>100)return json({error:'Invalid checkout session.'},400);
     try{
-      const ref=db.collection(collection).doc(input.id),data=(await ref.get()).data();
+      const ref=db.collection(paymentCollection()).doc(input.id),data=(await ref.get()).data();
       if(!data||data.tokenHash!==digest(input.token))return json({error:'Checkout session not found.'},403);
-      if(data.status==='published')return json({published:true});if(data.suppressed)return json({published:false});
+      if(data.suppressed)return json({published:false});
       if(!/^pay_[a-zA-Z0-9]+$/.test(input.razorpay_payment_id||'')||input.razorpay_order_id!==data.orderId||!validSignature(`${data.orderId}|${input.razorpay_payment_id}`,input.razorpay_signature,process.env.RAZORPAY_KEY_SECRET))return json({error:'Payment verification failed.'},400);
-      const payment=await razorpay(`payments/${input.razorpay_payment_id}`);
+      const payment=await razorpayClient().payments.fetch(input.razorpay_payment_id);
       if(payment.status==='authorized')return json({published:false});
-      return json({published:await publish(db,ref,data,payment)});
+      const published=await publish(db,ref,data,payment);return json({success:true,verified:true,published:paymentMode()==='live'&&published,mode:paymentMode()});
     }catch{return json({error:'Payment confirmation is pending. Please do not pay again.'},503)}
   }
   return json({error:'Not found.'},404);
