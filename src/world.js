@@ -1,5 +1,5 @@
 /** The walkable mela. All coordinates are world-space metres. */
-export function createWorld(THREE, scene) {
+export function createWorld(THREE, scene, partners=[]) {
   const root = new THREE.Group(); scene.add(root);
   const interactables = [], colliders = [], animations = [];
   const palettes = { red:0xce4251, pink:0xe77596, cream:0xffe4b4, gold:0xffb945, teal:0x219e96, blue:0x365da1, wood:0x573b30, dark:0x172526 };
@@ -60,7 +60,17 @@ export function createWorld(THREE, scene) {
     if(type==='ring'){for(let i=0;i<9;i++)mesh('cylinder',[0x4fb6b1,0xe4654e,0xe4b542][i%3],-1.7+i%3*1.3,1.9,Math.floor(i/3)*.42,.12,.65,.12,g);for(let i=0;i<4;i++){let r=new THREE.Mesh(new THREE.TorusGeometry(.29,.04,6,16),mat(0xffd471));r.rotation.x=-Math.PI/2;r.position.set(-1.5+i*.8,1.71,1.6);g.add(r);}}
     colliders.push({x,z,hx:2.05,hz:3.25});const ix=x+(x<0?4:-4);interact(id,type,name,ix,z,g,type==='food'?'Garma garam! ₹20 ka hai. Virtual treat, real mela memories.':'Aao ji, aao! Ek baar khel ke toh dekho.');return g;
   }
-  const foods=[['SHARMA JI KI CHAAT',-14,18,0xc64e54],['GARAM JALEBI',14,18,0xda8c36],['GOLGAPPE',-14,7,0x248b83],['CHOWMEIN',14,7,0xc76049],['STEAMING MOMOS',-14,-5,0xd57a39],['MALAI KULFI',14,-5,0x765e9b],['GARAM POPCORN',-24,-18,0xc64a48],['CANDY FLOSS',23,-13,0xca658d]];foods.forEach((f,i)=>stall(...f,'food',`food-${i}`));
+  const foods=[['SHARMA JI KI CHAAT',-14,18,0xc64e54],['GARAM JALEBI',14,18,0xda8c36],['GOLGAPPE',-14,7,0x248b83],['CHOWMEIN',14,7,0xc76049],['STEAMING MOMOS',-14,-5,0xd57a39],['MALAI KULFI',14,-5,0x765e9b],['GARAM POPCORN',-24,-18,0xc64a48],['CANDY FLOSS',23,-13,0xca658d]];
+  foods.forEach((f,i)=>{
+    const partner=partners[i];if(!partner){stall(...f,'food',`food-${i}`);return;}
+    const colour={kesari:0xdc9239,gulabi:0xce5278,neela:0x318d99}[partner.theme];
+    const group=stall(partner.name,f[1],f[2],colour,'partner',partner.id);
+    const item=interactables.at(-1);Object.assign(item,{partner,dialogue:partner.greeting});
+    sign(partner.plan==='featured'?'★ FEATURED BRAND ★':'✦ MELA PARTNER',0,4.85,1.8,5.6,.65,group);
+    sign(partner.name,0,3.05,1.9,4.7,.7,group);
+    for(const side of [-1,1]){rod(new THREE.Vector3(side*2.8,.15,1.8),new THREE.Vector3(side*2.8,4.55,1.8),0xe9c77a,.07,group);for(let y=.6;y<4.5;y+=.4)bulb(side*2.8,y,1.8,partner.plan==='featured'?0xffdc79:0x8ee4dc,group);}
+    if(partner.plan==='featured')garland(new THREE.Vector3(-2.6,5.45,1.8),new THREE.Vector3(2.6,5.45,1.8),22,.4,group);
+  });
   stall('KHILONE KI DUKAAN',-25,18,0x468d99,'toy','toy');stall('NISHANA LAGAO',25,18,0xbb495c,'balloon','balloon');stall('RING TOSS',25,6,0xe7a135,'ring','ring');
   // Wheel plane is XY: the rotor spins on Z, gondolas counter-rotate.
   const wheelGroup=new THREE.Group();wheelGroup.position.set(28,0,-29);root.add(wheelGroup);const wheelCenter=new THREE.Vector3(28,10,-29),radius=8.2;
