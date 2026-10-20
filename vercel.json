@@ -22,5 +22,29 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm ci"
+  "installCommand": "npm ci",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "mela-chaloge.vercel.app"
+        }
+      ],
+      "destination": "https://melachaloge.online/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.melachaloge.online"
+        }
+      ],
+      "destination": "https://melachaloge.online/:path*",
+      "permanent": true
+    }
+  ]
 }
