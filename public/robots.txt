@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mela-chaloge.vercel.app/sitemap.xml
