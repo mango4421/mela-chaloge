@@ -66,7 +66,7 @@ export async function POST(request){
         if(existing.tokenHash!==clean.tokenHash||existing.stallHash!==digest(JSON.stringify(clean.stall)))return json({error:'Checkout session does not match this draft.'},409);
         if(!existing.orderId)return json({error:'Your checkout is being prepared. Please wait before trying again.'},409);
         if(existing.status==='removed')return json({error:'This listing is no longer active.'},409);
-        return json({orderId:existing.orderId,key:process.env.RAZORPAY_KEY_ID,amount:stallPlans[existing.stall.plan].amount,published:existing.status==='published'});
+        return json({orderId:existing.orderId,key:process.env.RAZORPAY_KEY_ID,amount:stallPlans[existing.stall.plan].amount,published:liveListing(existing),expired:Boolean(existing.expiresAt&&existing.expiresAt<=Date.now())});
       }
       const order=await razorpay('orders',{amount:stallPlans[clean.stall.plan].amount,currency:'INR',receipt:clean.id,notes:{mela_stall_id:clean.id}});
       await ref.update({orderId:order.id,status:'awaiting_payment'});
