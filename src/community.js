@@ -1,0 +1,2 @@
+export const stallEmail='checkfacecard@gmail.com';
+export const stallMailto=`mailto:${stallEmail}?subject=${encodeURIComponent('Place my stall in Dussehra Mela Online')}&body=${encodeURIComponent('Hi! I would like to place a virtual stall in your mela.\n\nBrand / shop name:\nWebsite / Instagram:\nStall idea / products:\nPreferred dates:\nBudget (optional):\n\nPlease share availability and collaboration details.\n\nThanks!')}`;
