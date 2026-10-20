@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {publicDemo} from './public-demo.js';
 import {selectStalls} from './stalls.js';
 import {randomUUID} from 'node:crypto';
-import {supportLink} from '../public/support.js';
+import {supportInput,assertSupportPayment} from '../server/support-payments.js';
 import {funnelInput,once} from '../server/funnel.js';
 
 test('browser funnel excludes payment claims and deduplicates by session and IST day',()=>{
@@ -17,9 +17,10 @@ test('duplicate tracking is ignored but database failures propagate',async()=>{
   await assert.rejects(()=>once({create:async()=>{throw Error('offline')}},{}),/offline/);
 });
 
-test('same-phone support preserves the original QR recipient and restricts amounts',()=>{
-  const link=new URL(supportLink(21));assert.equal(link.protocol,'upi:');assert.equal(link.hostname,'pay');assert.ok(link.searchParams.get('pa'));assert.equal(link.searchParams.get('am'),'21');assert.equal(link.searchParams.get('cu'),'INR');
-  assert.equal(new URL(supportLink(51)).searchParams.get('pa'),link.searchParams.get('pa'));for(const amount of [0,1,151,'21',21.5])assert.throws(()=>supportLink(amount));
-});
-
 test('public 3D demo passes the real stall renderer validation',()=>{assert.equal(selectStalls([publicDemo])[0]?.id,publicDemo.id)});
+
+test('support checkout validates exact amounts and captured unrefunded provider payments',()=>{
+ const id=randomUUID();for(const amount of [0,1,15100,'2100'])assert.throws(()=>supportInput({id,amount}));assert.equal(supportInput({id,amount:2100}).amount,2100);
+ const order={id:'order_1',amount:2100,currency:'INR',notes:{mela_support_id:id}},payment={order_id:'order_1',amount:2100,currency:'INR',status:'captured',amount_refunded:0};assertSupportPayment(order,payment);
+ for(const patch of [{amount:5100},{order_id:'other'},{currency:'USD'},{status:'authorized'},{amount_refunded:1}])assert.throws(()=>assertSupportPayment(order,{...payment,...patch}));assert.throws(()=>assertSupportPayment({...order,notes:{}},payment));
+});
