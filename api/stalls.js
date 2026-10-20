@@ -2,7 +2,7 @@ import {stallDatabase} from '../server/firebase.js';
 import {digest,validSignature,assertCaptured,orderInput,publicationUpdate,liveListing} from '../server/stall-payments.js';
 import {stallPlans,stallTerms,stallSlots} from '../src/stalls.js';
 
-import {razorpayClient,paymentMode,paymentCollection,providerStatus,providerMessage} from '../server/razorpay.js';
+import {razorpayClient,paymentMode,paymentCollection,providerStatus,providerMessage,stallCapture} from '../server/razorpay.js';
 import {orderState,orderLeaseMs,recoverOrder} from '../server/order-recovery.js';
 import {slotCollection,slotAvailable,reserveSlot} from '../server/stall-slots.js';
 function json(data,status=200){return Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
@@ -87,7 +87,7 @@ export async function POST(request){
         if(['removed','placement_review'].includes(existing.status))return json({error:'This listing is no longer active.'},409);
         return json({order_id:existing.orderId,key:process.env.RAZORPAY_KEY_ID,amount:stallPlans[existing.stall.plan].amount,currency:'INR',mode:paymentMode(),published:liveListing(existing),verified:existing.status==='test_verified',expired:Boolean(existing.expiresAt&&existing.expiresAt<=Date.now())});
       }
-      preparing=true;const client=razorpayClient(),orderRequest={amount:stallPlans[clean.stall.plan].amount,currency:'INR',receipt:clean.id,notes:{mela_stall_id:clean.id}};
+      preparing=true;const client=razorpayClient(),orderRequest={amount:stallPlans[clean.stall.plan].amount,currency:'INR',receipt:clean.id,notes:{mela_stall_id:clean.id},payment:stallCapture};
       const order=existing?.needsOrder?await recoverOrder(client,orderRequest):await client.orders.create(orderRequest);
       await ref.update({orderId:order.id,status:'awaiting_payment',orderLeaseUntil:0});
       return json({order_id:order.id,key:process.env.RAZORPAY_KEY_ID,amount:stallPlans[clean.stall.plan].amount,currency:'INR',mode:paymentMode()});

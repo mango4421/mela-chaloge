@@ -1,10 +1,10 @@
 # Self-service stalls
 
-The builder replaces email enquiries. Pricing is fixed server-side at ₹200 basic and ₹500 featured. Drafts stay in local storage until checkout. Each placement lasts seven days with no automatic renewal.
+The builder replaces email enquiries. Pricing is fixed server-side at ₹151 basic and ₹251 featured. Drafts stay in local storage until checkout. Each placement lasts seven days with no automatic renewal.
 
 ## Current state
 
-Razorpay Standard Checkout is connected in **test mode**. A browser test payment passed order creation, checkout and server signature/capture verification. No real money is collected. Test records live in `mela_stall_tests` and never appear in the public mela. Live stores use `mela_stalls`.
+Razorpay Standard Checkout is connected in **live mode**, at ₹151 basic / ₹251 featured for seven days. Signed live webhooks and per-order automatic capture are configured. A live order was created at ₹151 with zero amount paid; no real-money transaction was performed during setup. A browser test payment passed order creation, checkout and server signature/capture verification. Test-mode records live in `mela_stall_tests` and never appear in the public mela. Live stores use `mela_stalls`.
 
 Firebase project: `mela-chaloge`, Standard Firestore, Mumbai (`asia-south1`), Spark free plan. Production rules deny browser reads/writes; the server uses Firebase Admin SDK.
 
@@ -19,7 +19,7 @@ Add these as sensitive environment variables using Vercel's dashboard. Never pas
 - RAZORPAY_WEBHOOK_SECRET: independent webhook signing secret.
 Placement lasts 7 days after verified capture, without automatic renewal. Duration and support/refund request contact are shown before payment. The server filters expired listings and never extends expiry when a webhook repeats.
 - MELA_ADMIN_SECRET: a random owner password of at least 32 characters.
-- ENABLE_STALL_CHECKOUT=true: test mode is configured; live mode also requires the webhook secret. Redeploy after changes.
+- ENABLE_STALL_CHECKOUT=true: live mode is configured with its webhook secret. Redeploy after changes.
 
 Razorpay webhook: `https://melachaloge.online/api/stalls?action=webhook`. Subscribe to order.paid, payment.captured, refund.processed, payment.dispute.created and payment.dispute.lost. Enable automatic payment capture. Keep webhook processing enabled during checkout pauses.
 
@@ -69,6 +69,6 @@ Added `src/stall-backdrop.js`, `server/stall-slots.js` and reservation/contact/b
 
 ## Local payment-free testing
 
-The local adapter in `scripts/local-preview.mjs` (`npm run build`, then `npm run dev:preview`) advertises a Preview without payment button. It validates the same stall data and keeps demos in process memory; demo visits use `/?preview=UUID` and spawn next to the chosen store. They never write a paid flag, payment record, live listing or location reservation. Restarting this local adapter clears its demos. The production API does not implement the preview action. Live credentials remain pending owner approval.
+The local adapter in `scripts/local-preview.mjs` (`npm run build`, then `npm run dev:preview`) advertises a Preview without payment button. It validates the same stall data and keeps demos in process memory; demo visits use `/?preview=UUID` and spawn next to the chosen store. They never write a paid flag, payment record, live listing or location reservation. Restarting this local adapter clears its demos. The production API does not implement the preview action. Live credentials were enabled with owner approval and are stored only in ignored local settings and sensitive production variables.
 
 Order recovery now leases active creation work for two minutes. Old failed drafts reconcile Razorpay orders by receipt before retrying, so a missing provider response does not blindly create another order. Definitive authentication failures reset the lease and show the actual error.

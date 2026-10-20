@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {orderState,recoverOrder} from '../server/order-recovery.js';
-const request={amount:20000,currency:'INR',receipt:'saved-stall',notes:{mela_stall_id:'saved-stall'}};
+const request={amount:15100,currency:'INR',receipt:'saved-stall',notes:{mela_stall_id:'saved-stall'}};
 test('old failed orders retry, active work waits, and saved orders are reused',()=>{
   assert.equal(orderState({status:'creating'},100),'retry');assert.equal(orderState({orderLeaseUntil:200},100),'busy');assert.equal(orderState({orderLeaseUntil:99},100),'retry');assert.equal(orderState({orderId:'order_1'},100),'existing');
 });

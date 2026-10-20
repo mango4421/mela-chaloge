@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {emptyStall,validateStall,publicLink,stallPlans,selectStalls,stallSlots,backdropImage,contactLinks} from './stalls.js';
 const draft={...emptyStall,name:'Meera’s Shop',instagram:'@meeras.shop'};
 test('stall pricing is fixed in paise and client supplied amounts are discarded',()=>{
-  assert.equal(stallPlans.basic.amount,20000);assert.equal(stallPlans.featured.amount,50000);
+  assert.equal(stallPlans.basic.amount,15100);assert.equal(stallPlans.featured.amount,25100);
   const result=validateStall({...draft,amount:1,paid:true,approved:true});
   assert.equal(result.instagram,'https://www.instagram.com/meeras.shop/');assert.equal(result.paid,undefined);assert.equal(result.amount,undefined);
 });
@@ -28,7 +28,7 @@ test('custom backdrops and contacts are validated and old drafts remain supporte
   const stall=validateStall({...draft,backdrop:'https://images.example.com/banner.jpg',whatsapp:'+91 98765 43210',email:'hello@example.com',contactUrl:'https://example.com/contact',slotId:'wheel-east'});
   assert.equal(stall.whatsapp,'919876543210');assert.equal(contactLinks(stall).length,4);assert.equal(stall.slotId,'wheel-east');
   assert.ok(contactLinks(stall).some(link=>link.href==='mailto:hello@example.com'));
-  for(const backdrop of ['javascript:alert(1)','data:image/svg+xml,<svg/>','x'.repeat(200001)])assert.throws(()=>backdropImage(backdrop));
+  for(const backdrop of ['javascript:alert(1)','data:image/svg+xml,<svg/>','x'.repeat(151001)])assert.throws(()=>backdropImage(backdrop));
   assert.throws(()=>validateStall({...draft,email:'hi@example.com\r\nBcc:bad@example.com'}));
   assert.throws(()=>validateStall({...draft,whatsapp:'javascript:alert(1)'}));assert.throws(()=>validateStall({...draft,slotId:'middle-of-road'}));
   assert.equal(validateStall({...draft,instagram:'',email:'hello@example.com'}).email,'hello@example.com');
