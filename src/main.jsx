@@ -1,5 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
+import {Analytics} from '@vercel/analytics/react';
 import {MelaEngine} from './engine.js';
 import './game.css';
 import {foodMenu} from './vendors.js';
@@ -45,4 +46,4 @@ function App(){
   </section></div>}
   </>}{toast&&<div className="toast" role="status">{toast}</div>}</div>
 }
-createRoot(document.getElementById('root')).render(<App/>);
+createRoot(document.getElementById('root')).render(<><App/><Analytics/></>);
