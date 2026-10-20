@@ -17,3 +17,13 @@ test('spectator mode does not score, and exiting clears the bike controls',()=>{
   engine.startWell(false);engine.updateWell(.05);assert.equal(engine.wellRun.score,0);assert.equal(performance,null);assert.ok(updates.at(-1).spectator);
   engine.startWell(true);engine.updateWell(.05);assert.ok(performance);engine.wellControl=1;engine.wellBoost=true;engine.leaveActivity();assert.equal(engine.mode,'walk');assert.equal(engine.wellControl,0);assert.equal(engine.wellBoost,false);assert.equal(performance,null);
 });
+
+test('playing starts in rider POV and arrow keys control bike height',()=>{
+  const engine=Object.create(MelaEngine.prototype);let ridingCamera;
+  Object.assign(engine,{elapsed:3,keys:new Set(),camera:new THREE.PerspectiveCamera(),world:{well:{setPerformance(){},camera:(angle,height,pov)=>{ridingCamera=pov;return {position:new THREE.Vector3(),target:new THREE.Vector3(1,0,0)}}}},audio:{effect(){}},events:{onMode(){},onGame(){}}});
+  engine.startWell(true);assert.equal(engine.wellChase,true);const initial=engine.wellRun.height;
+  engine.keys.add('arrowup');engine.updateWell(.05);assert.ok(engine.wellRun.height>initial);assert.equal(ridingCamera,true);
+  engine.keys.clear();engine.keys.add('arrowdown');engine.updateWell(.05);assert.ok(Math.abs(engine.wellRun.height-initial)<1e-8);
+  engine.startWell(false);engine.updateWell(.05);assert.equal(ridingCamera,false);
+  engine.reducedMotion=true;engine.startWell(true);engine.updateWell(.05);assert.equal(ridingCamera,false);
+});
