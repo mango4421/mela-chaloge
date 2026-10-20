@@ -6,14 +6,15 @@ import {validateStall,stallSlots} from '../src/stalls.js';
 const previews=new Map();
 import {GET as stallGET,POST as stallPOST} from '../api/stalls.js';
 import {GET as adminGET,POST as adminPOST} from '../api/admin.js';
+import {POST as funnelPOST} from '../api/funnel.js';
 const root=path.resolve('dist');
 http.createServer(async(req,res)=>{
-  const url=new URL(req.url,'http://127.0.0.1:4180');
+  const url=new URL(req.url,`http://127.0.0.1:${Number(process.env.PORT)||4180}`);
   try{
-    if(['/api/stalls','/api/admin'].includes(url.pathname)){
+    if(['/api/stalls','/api/admin','/api/funnel'].includes(url.pathname)){
       const body=[];for await(const chunk of req)body.push(chunk);
       const request=new Request(url,{method:req.method,headers:req.headers,...(body.length?{body:Buffer.concat(body)}:{})});
-      const handler=url.pathname==='/api/admin'?(req.method==='POST'?adminPOST:adminGET):(req.method==='POST'?stallPOST:stallGET);
+      const handler=url.pathname==='/api/funnel'?funnelPOST:url.pathname==='/api/admin'?(req.method==='POST'?adminPOST:adminGET):(req.method==='POST'?stallPOST:stallGET);
       if(url.pathname==='/api/stalls'&&url.searchParams.get('action')==='preview'&&req.method==='POST'){
         if(req.headers.origin!==url.origin||Buffer.concat(body).length>230000){res.writeHead(403).end();return;}
         try{const stall=validateStall(JSON.parse(Buffer.concat(body).toString()).stall),id=randomUUID();previews.set(id,{...stall,id});res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify({previewUrl:`/?preview=${id}`}));}catch(error){res.writeHead(400,{'Content-Type':'application/json'}).end(JSON.stringify({error:error.message}));}return;
@@ -26,4 +27,4 @@ http.createServer(async(req,res)=>{
     const file=path.resolve(root,`.${decodeURIComponent(name)}`);if(!file.startsWith(root+path.sep)){res.writeHead(403).end();return;}
     const body=await fs.readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.css':'text/css','.webp':'image/webp','.png':'image/png','.mp3':'audio/mpeg','.jpeg':'image/jpeg'})[path.extname(file)]||'application/octet-stream');res.end(body);
   }catch{res.writeHead(500).end('Local test request failed');}
-}).listen(4180,'127.0.0.1',()=>console.log('Local test checkout server ready on port 4180'));
+}).listen(Number(process.env.PORT)||4180,'127.0.0.1',()=>console.log(`Local test checkout server ready on port ${Number(process.env.PORT)||4180}`));

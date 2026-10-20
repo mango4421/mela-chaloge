@@ -1,0 +1,2 @@
+import {emptyStall} from './stalls.js';
+export const publicDemo={...emptyStall,id:'11111111-1111-4111-8111-111111111111',name:'LOWKEY SNEAKERS · DEMO',instagram:'https://www.instagram.com/lowkey_curious_guy/',backdrop:'https://melachaloge.online/assets/demo-sneakers.jpg',plan:'featured',greeting:'Aao ji! Apni pasand ki kicks dekho. Yeh demo dikhata hai aapki dukaan mela mein kaisi lagegi.',question:'Meri dukaan bhi aisi ho sakti hai?',answer:'Bilkul! Naam, shop link aur jagah chuniye. ₹151 basic ya ₹251 featured mein 7 din ka digital stall. Yeh sirf demo hai.'};

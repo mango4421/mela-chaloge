@@ -5,7 +5,8 @@ import {stallPlans,stallTerms,stallSlots} from '../src/stalls.js';
 import {razorpayClient,paymentMode,paymentCollection,providerStatus,providerMessage,stallCapture} from '../server/razorpay.js';
 import {orderState,orderLeaseMs,recoverOrder} from '../server/order-recovery.js';
 import {slotCollection,slotAvailable,reserveSlot} from '../server/stall-slots.js';
-function json(data,status=200){return Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
+import {paymentAttempt} from '../server/funnel.js';
+function json(data,status=200,publicSeconds=0){return Response.json(data,{status,headers:{'Cache-Control':publicSeconds?`public, max-age=0, s-maxage=${publicSeconds}`:'no-store','X-Content-Type-Options':'nosniff'}})}
 function ready(){return process.env.ENABLE_STALL_CHECKOUT==='true'&&Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON&&process.env.RAZORPAY_KEY_ID&&process.env.RAZORPAY_KEY_SECRET&&(paymentMode()==='test'||process.env.RAZORPAY_WEBHOOK_SECRET))}
 async function publish(db,ref,data,payment){
   assertCaptured(payment,data.orderId,data.stall.plan);
@@ -23,12 +24,15 @@ async function publish(db,ref,data,payment){
 async function webhook(request,raw){
   if(!validSignature(raw,request.headers.get('x-razorpay-signature'),process.env.RAZORPAY_WEBHOOK_SECRET))return json({error:'Invalid signature.'},401);
   const event=JSON.parse(raw),db=stallDatabase();
-  if(['order.paid','payment.captured'].includes(event.event)){
+  if(['order.paid','payment.captured','payment.authorized','payment.failed'].includes(event.event)){
     const entity=event.payload?.payment?.entity;if(!/^pay_[a-zA-Z0-9]+$/.test(entity?.id||''))return json({received:true});
-    const payment=await razorpayClient().payments.fetch(entity.id),order=await razorpayClient().orders.fetch(payment.order_id),id=order.notes?.mela_stall_id;
+    const payment=await razorpayClient().payments.fetch(entity.id);if(!payment.order_id)return json({received:true});
+    const order=await razorpayClient().orders.fetch(payment.order_id),id=order.notes?.mela_stall_id;
     if(!/^[a-f0-9-]{36}$/.test(id||''))return json({received:true});
     const ref=db.collection(paymentCollection()).doc(id),data=(await ref.get()).data();if(!data)return json({error:'Stall record not ready.'},503);
     if(data.orderId!==order.id)return json({error:'Order mismatch.'},409);
+    if(paymentMode()==='live')await paymentAttempt(db,order.id);
+    if(payment.status!=='captured')return json({received:true});
     if(payment.amount_refunded>0)return json({received:true});
     await publish(db,ref,data,payment);
   }else if(['refund.processed','payment.dispute.created','payment.dispute.lost'].includes(event.event)){
@@ -41,12 +45,12 @@ export async function GET(request){
   const action=new URL(request.url).searchParams.get('action');
   if(action==='config'){
     let availableSlots=[];
-    if(process.env.FIREBASE_SERVICE_ACCOUNT_JSON){try{const rows=await stallDatabase().collection(slotCollection(paymentMode())).get(),taken=new Map(rows.docs.map(row=>[row.id,row.data()]));availableSlots=stallSlots.filter(slot=>slotAvailable(taken.get(slot.id),'')).map(slot=>slot.id);}catch{return json({enabled:false,mode:paymentMode(),terms:stallTerms,plans:stallPlans,availableSlots:[],error:'Location availability is temporarily unavailable.'},503)}}
-    return json({enabled:ready(),mode:paymentMode(),terms:stallTerms,plans:stallPlans,availableSlots});
+    if(process.env.FIREBASE_SERVICE_ACCOUNT_JSON){try{const rows=await stallDatabase().collection(slotCollection(paymentMode())).get(),taken=new Map(rows.docs.map(row=>[row.id,row.data()]));availableSlots=stallSlots.filter(slot=>slotAvailable(taken.get(slot.id),'')).map(slot=>slot.id);}catch{return json({enabled:false,mode:paymentMode(),terms:stallTerms,plans:stallPlans,availableSlots:[],error:'Stall bookings are temporarily paused while our database is unavailable. Your draft is safe. Please return later; no payment is taken.'},503)}}
+    return json({enabled:ready(),mode:paymentMode(),terms:stallTerms,plans:stallPlans,availableSlots},200,15);
   }
   if(action!=='list')return json({error:'Not found.'},404);
   if(!process.env.FIREBASE_SERVICE_ACCOUNT_JSON)return json({stalls:[]});
-  try{const snapshot=await stallDatabase().collection('mela_stalls').where('status','==','published').get();return json({stalls:snapshot.docs.filter(row=>liveListing(row.data())).map(row=>({id:row.id,...row.data().stall,expiresAt:row.data().expiresAt})).sort((a,b)=>(b.plan==='featured')-(a.plan==='featured')||a.name.localeCompare(b.name))});}catch{return json({error:'Stalls could not be loaded.'},503)}
+  try{const snapshot=await stallDatabase().collection('mela_stalls').where('status','==','published').get();return json({stalls:snapshot.docs.filter(row=>liveListing(row.data())).map(row=>({id:row.id,...row.data().stall,expiresAt:row.data().expiresAt})).sort((a,b)=>(b.plan==='featured')-(a.plan==='featured')||a.name.localeCompare(b.name))},200,60);}catch{return json({error:'Stalls could not be loaded.'},503)}
 }
 export async function POST(request){
   const action=new URL(request.url).searchParams.get('action');
@@ -102,6 +106,7 @@ export async function POST(request){
       if(data.suppressed)return json({published:false});
       if(!/^pay_[a-zA-Z0-9]+$/.test(input.razorpay_payment_id||'')||input.razorpay_order_id!==data.orderId||!validSignature(`${data.orderId}|${input.razorpay_payment_id}`,input.razorpay_signature,process.env.RAZORPAY_KEY_SECRET))return json({error:'Payment verification failed.'},400);
       const payment=await razorpayClient().payments.fetch(input.razorpay_payment_id);
+      if(payment.order_id===data.orderId&&paymentMode()==='live')await paymentAttempt(db,data.orderId);
       if(payment.status==='authorized')return json({published:false});
       const published=await publish(db,ref,data,payment);if(!published)return json({error:'Your payment needs owner review because the location reservation is no longer available. Do not pay again. Contact checkfacecard@gmail.com.'},409);return json({success:true,verified:true,published:paymentMode()==='live'&&published,mode:paymentMode()});
     }catch{return json({error:'Payment confirmation is pending. Please do not pay again.'},503)}

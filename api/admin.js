@@ -2,12 +2,14 @@ import {stallDatabase} from '../server/firebase.js';
 import {adminPasswordValid,adminSession,authenticatedAdmin} from '../server/admin.js';
 import {slotCollection} from '../server/stall-slots.js';
 import {digest} from '../server/stall-payments.js';
+import {funnelReport} from '../server/funnel.js';
 function json(data,status=200,headers={}){return Response.json(data,{status,headers:{'Cache-Control':'no-store',...headers}})}
 const configured=()=>Boolean(process.env.MELA_ADMIN_SECRET?.length>=32&&process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
 function cookie(request,value,age=28800){return `mela_admin=${value}; Path=/api/admin; HttpOnly; SameSite=Strict; Max-Age=${age}${new URL(request.url).protocol==='https:'?'; Secure':''}`;}
 export async function GET(request){
   if(!authenticatedAdmin(request))return json({authenticated:false,configured:configured()},401);
   if(new URL(request.url).searchParams.get('action')==='session')return json({authenticated:true});
+  if(new URL(request.url).searchParams.get('action')==='funnel'){try{return json(await funnelReport(stallDatabase()))}catch{return json({error:'Funnel counts temporarily unavailable.'},503)}}
   const mode=new URL(request.url).searchParams.get('mode')==='test'?'test':'live';
   try{const rows=await stallDatabase().collection(mode==='test'?'mela_stall_tests':'mela_stalls').orderBy('createdAt','desc').limit(100).get();return json({stalls:rows.docs.map(row=>{const data=row.data();return {id:row.id,stall:data.stall,status:data.status,createdAt:data.createdAt,expiresAt:data.expiresAt||null,paymentId:data.paymentId||null,suppressed:Boolean(data.suppressed)}})});}catch{return json({error:'Could not load stalls.'},503)}
 }
