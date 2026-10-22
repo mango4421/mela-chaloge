@@ -29,6 +29,8 @@ Run `npm ci`, `npm test`, `npm run build:cloudflare`, and `npx wrangler pages de
 
 During migration Pages follows `codex/cloudflare-migration`; Vercel production follows `main`. Merge the migration PR and switch Pages production to `main` together when adopting the new deployment workflow, so later game changes reach Cloudflare. Vercel's current production deployment is preserved separately as rollback.
 
+The production apex and `www` are attached to Pages with HTTPS enabled. A zone-level Single Redirect named `Redirect www to melachaloge.online` sends `https://www.melachaloge.online/*` to `https://melachaloge.online/${1}` with status 301 and query strings preserved. Pages `_redirects` does not support domain-level source patterns, so this redirect belongs in Cloudflare Rules.
+
 For immediate DNS rollback, restore the apex A record to `76.76.21.21` with DNS-only routing and keep `www` as a CNAME to the apex. The original GoDaddy nameservers are `ns57.domaincontrol.com` and `ns58.domaincontrol.com`; restoring those also restores the original zone, subject to propagation. Do not delete the Vercel project or its custom-domain assignments while rollback is needed. No database migration or webhook URL change is needed: both platforms use the same database and public domain.
 
 ## Traffic limits
