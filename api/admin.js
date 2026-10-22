@@ -1,4 +1,4 @@
-import {stallDatabase} from '../server/firebase.js';
+import {stallDatabase} from '#mela-database';
 import {adminPasswordValid,adminSession,authenticatedAdmin} from '../server/admin.js';
 import {slotCollection} from '../server/stall-slots.js';
 import {digest} from '../server/stall-payments.js';

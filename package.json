@@ -3,9 +3,16 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
+  "imports": {
+    "#mela-database": {
+      "workerd": "./server/firestore-rest.js",
+      "default": "./server/firebase.js"
+    }
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4175",
     "build": "vite build",
+    "build:cloudflare": "node scripts/build-cloudflare.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 4176",
     "test": "node --test src/*.test.js",
     "dev:preview": "node --env-file=.env scripts/local-preview.mjs"
@@ -13,12 +20,14 @@
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "firebase-admin": "14.5.0",
+    "google-auth-library": "11.3.1",
     "razorpay": "2.9.8",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "three": "0.180.0"
   },
   "devDependencies": {
-    "vite": "7.3.7"
+    "vite": "7.3.7",
+    "wrangler": "4.151.3"
   }
 }

@@ -1,4 +1,4 @@
-import {stallDatabase} from '../server/firebase.js';
+import {stallDatabase} from '#mela-database';
 import {funnelInput,once} from '../server/funnel.js';
 import {digest} from '../server/stall-payments.js';
 // shortcut: per-instance abuse guard; use a shared limiter if this analytics endpoint attracts bots.
