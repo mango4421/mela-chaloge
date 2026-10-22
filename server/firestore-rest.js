@@ -32,7 +32,8 @@ export function createRestDatabase(projectId,accessToken,fetcher=fetch){
   identifier(projectId);
   const parent=`projects/${projectId}/databases/(default)/documents`,base=`https://firestore.googleapis.com/v1/${parent}`;
   async function request(suffix,body,method='POST'){
-    const token=await accessToken();
+    let token;
+    try{token=await accessToken();}catch(error){console.error('Database authentication failed',{type:error.name,code:error.code,status:error.response?.status,reason:error.response?.data?.error,stack:error.stack?.split('\n').slice(1,3)});throw error;}
     const response=await fetcher(base+suffix,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(15000)});
     const result=await response.json();
     if(!response.ok){const error=Error('Database request failed.');error.status=result.error?.status;error.code={ALREADY_EXISTS:6,ABORTED:10,NOT_FOUND:5}[error.status]||response.status;throw error;}
