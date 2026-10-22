@@ -5,6 +5,7 @@
   "compatibility_date": "2026-10-22",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "MELA_PLATFORM": "cloudflare"
+    "MELA_PLATFORM": "cloudflare",
+    "PAGES_WRANGLER_MAJOR_VERSION": "4"
   }
 }
