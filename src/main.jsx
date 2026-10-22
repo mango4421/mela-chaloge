@@ -74,4 +74,4 @@ function App(){
   </section></div>}
   {toast&&<div className="toast" role="status">{toast}</div>}</div>
 }
-createRoot(document.getElementById('root')).render(<><App/>{analyticsSample()&&<Analytics/>}</>);
+createRoot(document.getElementById('root')).render(<><App/>{import.meta.env.MODE!=='cloudflare'&&analyticsSample()&&<Analytics/>}</>);
