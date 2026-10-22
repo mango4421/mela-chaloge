@@ -1,3 +1,4 @@
+import '../../server/cloudflare-runtime.js';
 import * as stalls from '../../api/stalls.js';
 import * as admin from '../../api/admin.js';
 import * as funnel from '../../api/funnel.js';
