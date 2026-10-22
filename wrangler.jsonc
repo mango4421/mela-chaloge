@@ -5,7 +5,6 @@
   "compatibility_date": "2026-10-22",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "MELA_PLATFORM": "cloudflare",
-    "FIRESTORE_PREFER_REST": "true"
+    "MELA_PLATFORM": "cloudflare"
   }
 }

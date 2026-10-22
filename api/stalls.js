@@ -1,4 +1,4 @@
-import {stallDatabase} from '../server/firebase.js';
+import {stallDatabase} from '#mela-database';
 import {digest,validSignature,assertCaptured,orderInput,publicationUpdate,liveListing} from '../server/stall-payments.js';
 import {stallPlans,stallTerms,stallSlots} from '../src/stalls.js';
 
